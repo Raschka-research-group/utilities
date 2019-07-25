@@ -73,11 +73,11 @@ def center_in_image(image_array, output_size):
                          f'Got {len(output_array.shape)} array.')
 
     if output_array.shape[0] <= image_array.shape[0]:
-        raise ValueError(f'Input array must not be taller than input array.\n'
+        raise ValueError(f'Ouput array must not be taller than input array.\n'
                          f'Got {image_array.shape[0]} and {output_array.shape[0]}.')
 
     if output_array.shape[1] <= image_array.shape[1]:
-        raise ValueError(f'Input array must not be wider than input array.\n'
+        raise ValueError(f'Output array must not be wider than input array.\n'
                           'Got {image_array.shape[1]} and {output_array.shape[1]}.')
 
     y_center, x_center = center_of_mass(image_array)

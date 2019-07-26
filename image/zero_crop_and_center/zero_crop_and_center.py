@@ -15,7 +15,7 @@ from scipy.ndimage.measurements import center_of_mass
 import math
 
 
-def find_zero_bounding_box(image_array):
+def find_zero_bounding_box(image_array, background_threshold=0):
 
     if len(image_array.shape) != 2:
         raise ValueError(f'Only 2D arrays are supported.\n'
@@ -23,39 +23,56 @@ def find_zero_bounding_box(image_array):
 
     # crop top
     start_row = 0
+    keep_row = False
     for row in image_array:
-        is_zero = not sum([col for col in row])
-        if is_zero:
-            start_row += 1
-        else:
+        if keep_row:
             break
+
+        for ele in row:
+            if ele > background_threshold:
+                keep_row = True
+                break
+        if not keep_row:
+            start_row += 1
 
     # crop bottom
     end_row = image_array.shape[0]-1
+    keep_row = False
     for row in np.flip(image_array, axis=0):
-        is_zero = not sum([col for col in row])
-        if is_zero:
-            end_row -= 1
-        else:
+        if keep_row:
             break
+        for ele in row:
+            if ele > background_threshold:
+                keep_row = True
+                break
+        if not keep_row:
+            end_row -= 1
 
     # crop left
     start_col = 0
+    keep_row = False
     for row in image_array.T:
-        is_zero = not sum([col for col in row])
-        if is_zero:
-            start_col += 1
-        else:
+        if keep_row:
             break
+        for ele in row:
+            if ele > background_threshold:
+                keep_row = True
+                break
+        if not keep_row:
+            start_col += 1
 
     # crop right
     end_col = image_array.shape[0]-1
+    keep_row = False
     for row in np.flip(image_array.T, axis=0):
-        is_zero = not sum([col for col in row])
-        if is_zero:
-            end_col -= 1
-        else:
+        if keep_row:
             break
+        for ele in row:
+            if ele > background_threshold:
+                keep_row = True
+                break
+        if not keep_row:
+            end_col -= 1
 
     return start_row, end_row+1, start_col, end_col+1
 
@@ -74,11 +91,13 @@ def center_in_image(image_array, output_size):
 
     if output_array.shape[0] <= image_array.shape[0]:
         raise ValueError(f'Output array must not be taller than input array.\n'
-                         f'Got {image_array.shape[0]} and {output_array.shape[0]}.')
+                         f'Got {image_array.shape[0]} '
+                         f'and {output_array.shape[0]}.')
 
     if output_array.shape[1] <= image_array.shape[1]:
         raise ValueError(f'Output array must not be wider than input array.\n'
-                         f'Got {image_array.shape[1]} and {output_array.shape[1]}.')
+                         f'Got {image_array.shape[1]} '
+                         f'and {output_array.shape[1]}.')
 
     y_center, x_center = center_of_mass(image_array)
     y_center, x_center = math.floor(y_center), math.floor(x_center)
@@ -89,7 +108,7 @@ def center_in_image(image_array, output_size):
     x_diff = x_center_out - x_center
     y_diff = y_center_out - y_center
 
-    output_array[y_diff:image_array.shape[0]+y_diff, 
+    output_array[y_diff:image_array.shape[0]+y_diff,
                  x_diff:image_array.shape[1]+x_diff] = image_array
 
     return output_array
@@ -123,6 +142,14 @@ python zero_crop_and_center --in_dir './some_pngs'/\\
                         required=True,
                         help='Width of the output images')
 
+    parser.add_argument('--background_threshold',
+                        type=int,
+                        default=0,
+                        help='Threshold for cropping a pixel. '
+                             'By default, all pixels'
+                             '">0" will be regared as '
+                             'non-background when cropping.')
+
     parser.add_argument('--version', action='version', version='v. 1.0')
 
     args = parser.parse_args()
@@ -139,7 +166,8 @@ python zero_crop_and_center --in_dir './some_pngs'/\\
 
     for in_img, out_img in zip(in_paths, out_paths):
         img = imageio.imread(in_img)
-        top, bottom, left, right = find_zero_bounding_box(img)
+        top, bottom, left, right = find_zero_bounding_box(
+            img, args.background_threshold)
         cropped_img = img[top:bottom, left:right]
 
         centered_img = center_in_image(image_array=img[top:bottom, left:right],

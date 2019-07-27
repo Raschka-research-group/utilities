@@ -105,11 +105,23 @@ def center_in_image(image_array, output_size):
     y_center_out = output_array.shape[0] // 2
     x_center_out = output_array.shape[1] // 2
 
-    x_diff = x_center_out - x_center
-    y_diff = y_center_out - y_center
+    x_diff = max(0, x_center_out - x_center)
+    y_diff = max(0, y_center_out - y_center)
 
-    output_array[y_diff:image_array.shape[0]+y_diff,
-                 x_diff:image_array.shape[1]+x_diff] = image_array
+    y_buff = 0
+    x_buff = 0
+
+    out_shape = output_array[y_diff:image_array.shape[0]+y_diff,
+                             x_diff:image_array.shape[1]+x_diff]
+
+    if out_shape.shape[0] < image_array.shape[0]:
+        y_buff = image_array.shape[0] - out_shape.shape[0]
+
+    if out_shape.shape[1] < image_array.shape[1]:
+        x_buff = image_array.shape[1] - out_shape.shape[1]
+
+    output_array[y_diff-y_buff:image_array.shape[0]+y_diff,
+                 x_diff-x_buff:image_array.shape[1]+x_diff] = image_array
 
     return output_array
 
@@ -150,6 +162,11 @@ python zero_crop_and_center --in_dir './some_pngs'/\\
                              '">0" will be regared as '
                              'non-background when cropping.')
 
+    parser.add_argument('--invert_image',
+                        type=bool,
+                        default=False,
+                        help='Inverts the image colors if `True`.')
+
     parser.add_argument('--version', action='version', version='v. 1.0')
 
     args = parser.parse_args()
@@ -165,13 +182,22 @@ python zero_crop_and_center --in_dir './some_pngs'/\\
     out_paths = [os.path.join(args.out_dir, i) for i in png_names]
 
     for in_img, out_img in zip(in_paths, out_paths):
-        img = imageio.imread(in_img)
-        top, bottom, left, right = find_zero_bounding_box(
-            img, args.background_threshold)
-        cropped_img = img[top:bottom, left:right]
 
-        centered_img = center_in_image(image_array=img[top:bottom, left:right],
-                                       output_size=(args.out_height,
-                                                    args.out_width))
+        try:
+            img = imageio.imread(in_img)
+            if args.invert_image:
+                img = np.invert(img)
+            top, bottom, left, right = find_zero_bounding_box(
+                img, args.background_threshold)
+            cropped_img = img[top:bottom, left:right]
 
-        imageio.imsave(out_img, centered_img)
+            centered_img = center_in_image(image_array=img[top:bottom, left:right],
+                                           output_size=(args.out_height,
+                                                        args.out_width))
+
+            imageio.imsave(out_img, centered_img)
+        except Exception as e:
+
+            print(f'Error handling file{in_img}')
+            print(e)
+
